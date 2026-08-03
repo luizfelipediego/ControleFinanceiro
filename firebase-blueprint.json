@@ -1,0 +1,17 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profiles",
+      "description": "Perfil dos usuários cadastrados no sistema",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    }
+  }
+}
