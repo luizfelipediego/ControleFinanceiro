@@ -9,9 +9,41 @@
         "email": { "type": "string" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
-        "createdAt": { "type": "string" }
+        "role": { "type": "string" },
+        "caixa_permissao": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "lastLogin": { "type": "string" }
       },
       "required": ["uid", "email"]
+    },
+    "receitas": {
+      "title": "Receitas",
+      "description": "Entradas financeiras registradas",
+      "type": "object",
+      "properties": {
+        "data": { "type": "string" },
+        "origem": { "type": "string" },
+        "valor": { "type": "number" },
+        "caixa": { "type": "string" },
+        "user_uid": { "type": "string" }
+      },
+      "required": ["data", "origem", "valor", "caixa"]
+    },
+    "despesas": {
+      "title": "Despesas",
+      "description": "Saídas financeiras registradas",
+      "type": "object",
+      "properties": {
+        "data_compra": { "type": "string" },
+        "data_competencia": { "type": "string" },
+        "categoria_id": { "type": "number" },
+        "descricao": { "type": "string" },
+        "valor": { "type": "number" },
+        "forma_pagamento": { "type": "string" },
+        "caixa": { "type": "string" },
+        "user_uid": { "type": "string" }
+      },
+      "required": ["data_compra", "descricao", "valor", "caixa"]
     }
   }
 }

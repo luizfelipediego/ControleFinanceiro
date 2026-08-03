@@ -112,26 +112,33 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-1 sm:gap-2">
               <button
                 onClick={onOpenAuthModal}
-                className="flex items-center gap-2 text-left hover:bg-slate-800/80 p-1.5 rounded-xl transition-colors cursor-pointer"
-                title="Minha Conta"
+                className="flex items-center gap-2 text-left hover:bg-slate-800/80 p-1.5 rounded-xl transition-colors cursor-pointer border border-slate-700/60 bg-slate-800/40"
+                title="Minha Conta & Permissões"
               >
-                {user.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={user.displayName || "Avatar"}
-                    className="w-8 h-8 rounded-full border border-emerald-500/50 object-cover shrink-0"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xs shrink-0">
-                    {user.displayName?.charAt(0).toUpperCase() || "U"}
-                  </div>
-                )}
+                <div className="relative shrink-0">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt={user.displayName || "Avatar"}
+                      className="w-8 h-8 rounded-full border border-emerald-500/50 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xs">
+                      {user.displayName?.charAt(0).toUpperCase() || "U"}
+                    </div>
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900 animate-pulse" />
+                </div>
                 <div className="hidden lg:block text-xs text-left">
-                  <p className="font-semibold text-slate-200 leading-none truncate max-w-[120px]">
-                    {user.displayName || user.email?.split("@")[0]}
+                  <div className="flex items-center gap-1">
+                    <p className="font-semibold text-slate-200 leading-none truncate max-w-[110px]">
+                      {user.displayName || user.email?.split("@")[0]}
+                    </p>
+                  </div>
+                  <p className="text-emerald-400 text-[10px] font-bold mt-0.5 flex items-center gap-1">
+                    <span>{user.roleLabel || "Gestor"}</span>
                   </p>
-                  <p className="text-emerald-400 text-[10px] font-bold mt-0.5">Conectado</p>
                 </div>
               </button>
               <button
