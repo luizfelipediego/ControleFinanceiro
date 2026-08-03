@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Navbar } from "./components/Navbar";
 import { Sidebar, NavTab } from "./components/Sidebar";
 import { Dashboard } from "./components/Dashboard";
@@ -9,6 +9,7 @@ import { Categories } from "./components/Categories";
 import { Reports } from "./components/Reports";
 import { Settings } from "./components/Settings";
 import { AuthModal } from "./components/AuthModal";
+import { AuthScreen } from "./components/AuthScreen";
 import {
   DashboardSummary,
   Expense,
@@ -21,6 +22,7 @@ import {
 } from "./types";
 
 export function AppContent() {
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
   const [anoSel, setAnoSel] = useState<number>(new Date().getFullYear());
   const [mesSel, setMesSel] = useState<number>(new Date().getMonth() + 1);
@@ -34,10 +36,10 @@ export function AppContent() {
   const [cartoes, setCartoes] = useState<CreditCard[]>([]);
   const [config, setConfig] = useState<AppConfig | null>(null);
 
-  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const loadAllData = async () => {
+    if (!user) return;
     try {
       const [dashRes, despRes, fixasRes, recRes, catRes, cartRes, cfgRes] = await Promise.all([
         fetch(`/api/dashboard?ano=${anoSel}&mes=${mesSel}&caixa=${encodeURIComponent(caixaSel)}`),
@@ -62,8 +64,10 @@ export function AppContent() {
   };
 
   useEffect(() => {
-    loadAllData();
-  }, [anoSel, mesSel, caixaSel]);
+    if (user) {
+      loadAllData();
+    }
+  }, [user, anoSel, mesSel, caixaSel]);
 
   // Handler functions
   const handleAddReceita = async (recData: Omit<Revenue, "id">) => {
@@ -159,8 +163,28 @@ export function AppContent() {
     loadAllData();
   };
 
+  // 1. Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-slate-300 space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-bold text-slate-950 text-2xl animate-pulse shadow-lg shadow-emerald-500/20">
+          C
+        </div>
+        <p className="text-xs sm:text-sm font-semibold text-slate-400 tracking-wide">
+          Verificando credenciais e carregando ambiente seguro...
+        </p>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated state: Force user registration/login gate
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  // 3. Authenticated state: Render financial app
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar
         anoSel={anoSel}
         setAnoSel={setAnoSel}
@@ -174,7 +198,7 @@ export function AppContent() {
       <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 overflow-y-auto pb-20 md:pb-8">
           {activeTab === "dashboard" && (
             <Dashboard
               summary={summary}
