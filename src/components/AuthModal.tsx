@@ -27,7 +27,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     } catch (err: any) {
       console.error(err);
       if (err.code === "auth/popup-closed-by-user") {
-        setError("Pop-up de login do Google foi fechado.");
+        setError("Pop-up de login do Google foi fechado antes de concluir.");
+      } else if (err.code === "auth/unauthorized-domain") {
+        const currentDomain = window.location.hostname;
+        setError(
+          `O domínio atual (${currentDomain}) não está autorizado no Firebase Console para login com Google. Utilize o formulário de E-mail e Senha abaixo (criação imediata) ou adicione "${currentDomain}" no Firebase Console > Authentication > Settings > Authorized domains.`
+        );
       } else {
         setError(err.message || "Erro ao autenticar com o Google.");
       }
