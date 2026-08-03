@@ -470,8 +470,24 @@ app.get("/api/receitas", (req, res) => {
 
 app.post("/api/receitas", (req, res) => {
   const { data, origem, valor, observacao, caixa } = req.body;
-  if (!data || !origem || !valor) return res.status(400).json({ error: "Data, origem e valor são obrigatórios" });
-  const nova: ReceitaDb = { id: db.receitas.length + 1, data, origem, valor: parseFloat(valor), observacao: observacao || "", caixa: caixa || "PF (Pessoal)", user_id: 1 };
+  if (!data || !origem) {
+    return res.status(400).json({ error: "Data e origem/fonte da receita são obrigatórios." });
+  }
+  
+  const parsedVal = typeof valor === "number" ? valor : parseFloat(String(valor || "0").replace(",", "."));
+  if (isNaN(parsedVal) || parsedVal <= 0) {
+    return res.status(400).json({ error: "Informe um valor de receita válido maior que R$ 0,00." });
+  }
+
+  const nova: ReceitaDb = {
+    id: db.receitas.length + 1,
+    data,
+    origem: origem.trim(),
+    valor: parsedVal,
+    observacao: observacao ? String(observacao).trim() : "",
+    caixa: caixa || "PF (Pessoal)",
+    user_id: 1,
+  };
   db.receitas.push(nova);
   saveDbToFile();
   res.status(201).json(nova);
@@ -502,10 +518,16 @@ app.get("/api/despesas", (req, res) => {
 
 app.post("/api/despesas", (req, res) => {
   const { data_compra, categoria_id, descricao, valor, forma_pagamento, cartao_id, caixa, responsavel, total_parcelas } = req.body;
-  if (!data_compra || !categoria_id || !descricao || !valor) return res.status(400).json({ error: "Data, categoria, descrição e valor são obrigatórios" });
+  if (!data_compra || !categoria_id || !descricao) {
+    return res.status(400).json({ error: "Data, categoria e descrição são obrigatórios." });
+  }
+
+  const valorTotal = typeof valor === "number" ? valor : parseFloat(String(valor || "0").replace(",", "."));
+  if (isNaN(valorTotal) || valorTotal <= 0) {
+    return res.status(400).json({ error: "Informe um valor de despesa válido maior que R$ 0,00." });
+  }
 
   const numParcelas = parseInt(total_parcelas) || 1;
-  const valorTotal = parseFloat(valor);
   const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
   const grupoId = numParcelas > 1 ? `grp_${Date.now()}` : null;
   const dtInicio = new Date(data_compra);

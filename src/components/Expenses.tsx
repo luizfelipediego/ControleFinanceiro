@@ -111,11 +111,13 @@ export const Expenses: React.FC<ExpensesProps> = ({
   const handleAddDespesaSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const parsedVal = parseFloat(valor.replace(",", ".")) || 0;
+
     onAddDespesa({
       data_compra: dataCompra,
       categoria_id: categoriaId,
       descricao,
-      valor: parseFloat(valor) || 0,
+      valor: parsedVal,
       forma_pagamento: formaPagamento,
       cartao_id: formaPagamento === "Cartão de Crédito" ? (cartaoId || cartoes[0]?.id || null) : null,
       caixa,
@@ -123,7 +125,7 @@ export const Expenses: React.FC<ExpensesProps> = ({
       total_parcelas: (formaPagamento === "Cartão de Crédito" || formaPagamento === "Financiamento" || formaPagamento === "Boleto/Transferência") ? (parseInt(totalParcelas) || 1) : 1,
     });
 
-    if (descricao && valor && parseFloat(valor) > 0) {
+    if (descricao.trim() && parsedVal > 0) {
       setDescricao("");
       setValor("");
       setTotalParcelas("1");

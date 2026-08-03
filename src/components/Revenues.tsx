@@ -29,15 +29,17 @@ export const Revenues: React.FC<RevenuesProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const parsedVal = parseFloat(valor.replace(",", ".")) || 0;
+
     onAddReceita({
       data,
       origem,
-      valor: parseFloat(valor) || 0,
+      valor: parsedVal,
       observacao,
       caixa,
     });
 
-    if (origem && valor && parseFloat(valor) > 0) {
+    if (origem.trim() && parsedVal > 0) {
       setOrigem("");
       setValor("");
       setObservacao("");
