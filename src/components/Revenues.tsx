@@ -28,19 +28,20 @@ export const Revenues: React.FC<RevenuesProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!origem || !valor || parseFloat(valor) <= 0) return;
 
     onAddReceita({
       data,
       origem,
-      valor: parseFloat(valor),
+      valor: parseFloat(valor) || 0,
       observacao,
       caixa,
     });
 
-    setOrigem("");
-    setValor("");
-    setObservacao("");
+    if (origem && valor && parseFloat(valor) > 0) {
+      setOrigem("");
+      setValor("");
+      setObservacao("");
+    }
   };
 
   const totalProventosMes = receitas.reduce((sum, r) => sum + r.valor, 0);

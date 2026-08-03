@@ -10,6 +10,7 @@ import { Reports } from "./components/Reports";
 import { Settings } from "./components/Settings";
 import { AuthModal } from "./components/AuthModal";
 import { AuthScreen } from "./components/AuthScreen";
+import { ToastNotification, ToastMessage } from "./components/ToastNotification";
 import {
   DashboardSummary,
   Expense,
@@ -37,6 +38,21 @@ export function AppContent() {
   const [config, setConfig] = useState<AppConfig | null>(null);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (type: "success" | "error" | "info", title: string, message?: string) => {
+    const newToast: ToastMessage = {
+      id: String(Date.now() + Math.random()),
+      type,
+      title,
+      message,
+    };
+    setToasts((prev) => [...prev, newToast]);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const loadAllData = async () => {
     if (!user) return;
@@ -69,98 +85,286 @@ export function AppContent() {
     }
   }, [user, anoSel, mesSel, caixaSel]);
 
-  // Handler functions
+  // Handler functions with explicit success & error toast notifications
   const handleAddReceita = async (recData: Omit<Revenue, "id">) => {
-    await fetch("/api/receitas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(recData),
-    });
-    loadAllData();
+    try {
+      const res = await fetch("/api/receitas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(recData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast(
+          "success",
+          "Receita incluída com sucesso!",
+          `Origem: "${recData.origem}" - R$ ${Number(recData.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+        );
+        // Automatically align selected year/month/caixa so entry is instantly visible on Dashboard
+        if (recData.data) {
+          const parts = recData.data.split("-");
+          if (parts.length >= 2) {
+            const itemAno = parseInt(parts[0]);
+            const itemMes = parseInt(parts[1]);
+            if (itemAno && itemMes) {
+              setAnoSel(itemAno);
+              setMesSel(itemMes);
+            }
+          }
+        }
+        if (caixaSel !== "Consolidado" && recData.caixa && recData.caixa !== caixaSel) {
+          setCaixaSel(recData.caixa as CaixaType);
+        }
+        loadAllData();
+      } else {
+        addToast(
+          "error",
+          "Inclusão de receita negada / com erro",
+          data.error || data.message || "Por favor, verifique se os campos de origem, data e valor foram preenchidos corretamente."
+        );
+      }
+    } catch (err: any) {
+      addToast("error", "Não foi possível incluir a receita", err.message || "Erro de conexão com o servidor.");
+    }
   };
 
   const handleDeleteReceita = async (id: number) => {
-    await fetch(`/api/receitas/${id}`, { method: "DELETE" });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/receitas/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("info", "Receita removida", "A entrada foi excluída do sistema.");
+        loadAllData();
+      } else {
+        addToast("error", "Erro ao excluir receita", data.error || data.message || "Não foi possível remover a receita.");
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleAddDespesa = async (despData: any) => {
-    await fetch("/api/despesas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(despData),
-    });
-    loadAllData();
+    try {
+      const res = await fetch("/api/despesas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(despData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const numParcelas = parseInt(despData.total_parcelas) || 1;
+        addToast(
+          "success",
+          "Despesa incluída com sucesso!",
+          numParcelas > 1
+            ? `"${despData.descricao}" em ${numParcelas}x de R$ ${(parseFloat(despData.valor) / numParcelas).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+            : `"${despData.descricao}" - R$ ${Number(despData.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+        );
+        // Automatically align selected year/month/caixa based on competencia so it immediately shows in Dashboard
+        const createdItem = Array.isArray(data) ? data[0] : data;
+        if (createdItem && createdItem.data_competencia) {
+          const parts = createdItem.data_competencia.split("-");
+          if (parts.length >= 2) {
+            const itemAno = parseInt(parts[0]);
+            const itemMes = parseInt(parts[1]);
+            if (itemAno && itemMes) {
+              setAnoSel(itemAno);
+              setMesSel(itemMes);
+            }
+          }
+        }
+        if (createdItem && caixaSel !== "Consolidado" && createdItem.caixa && createdItem.caixa !== caixaSel) {
+          setCaixaSel(createdItem.caixa as CaixaType);
+        }
+        loadAllData();
+      } else {
+        addToast(
+          "error",
+          "Inclusão de despesa negada / com erro",
+          data.error || data.message || "Verifique se preencheu data, descrição, categoria e valor."
+        );
+      }
+    } catch (err: any) {
+      addToast("error", "Não foi possível incluir a despesa", err.message || "Erro ao conectar com o servidor.");
+    }
   };
 
   const handleDeleteDespesa = async (id: number) => {
-    await fetch(`/api/despesas/${id}`, { method: "DELETE" });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/despesas/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("info", "Despesa removida", "A despesa foi removida dos lançamentos.");
+        loadAllData();
+      } else {
+        addToast("error", "Erro ao excluir despesa", data.error || data.message || "Falha ao excluir.");
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleAddDespesaFixa = async (fixaData: any) => {
-    await fetch("/api/despesas-fixas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fixaData),
-    });
-    loadAllData();
+    try {
+      const res = await fetch("/api/despesas-fixas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fixaData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast(
+          "success",
+          "Despesa fixa incluída com sucesso!",
+          `"${fixaData.descricao}" - Vencimento dia ${fixaData.dia_vencimento}`
+        );
+        loadAllData();
+      } else {
+        addToast(
+          "error",
+          "Inclusão de despesa fixa negada",
+          data.error || data.message || "Descrição, categoria e valor são obrigatórios."
+        );
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleToggleDespesaFixa = async (id: number) => {
-    await fetch(`/api/despesas-fixas/${id}/toggle`, { method: "PATCH" });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/despesas-fixas/${id}/toggle`, { method: "PATCH" });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("info", "Status alterado", "O status de renovação da despesa fixa foi atualizado.");
+        loadAllData();
+      } else {
+        addToast("error", "Não foi possível alterar status", data.error || data.message);
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleDeleteDespesaFixa = async (id: number) => {
-    await fetch(`/api/despesas-fixas/${id}`, { method: "DELETE" });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/despesas-fixas/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("info", "Despesa fixa removida", "A despesa fixa foi removida com sucesso.");
+        loadAllData();
+      } else {
+        addToast("error", "Erro ao remover despesa fixa", data.error || data.message);
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleAddCategoria = async (catData: { nome: string; teto_mensal: number }) => {
-    await fetch("/api/categorias", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(catData),
-    });
-    loadAllData();
+    try {
+      const res = await fetch("/api/categorias", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(catData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("success", "Categoria incluída com sucesso!", `Nova categoria: "${catData.nome}"`);
+        loadAllData();
+      } else {
+        addToast("error", "Inclusão de categoria negada", data.error || data.message || "Informe o nome da categoria.");
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleUpdateCategoriaTeto = async (id: number, teto: number) => {
-    await fetch(`/api/categorias/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ teto_mensal: teto }),
-    });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/categorias/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teto_mensal: teto }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("success", "Teto atualizado com sucesso!", `Novo teto definido para R$ ${Number(teto).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+        loadAllData();
+      } else {
+        addToast("error", "Erro ao atualizar teto da categoria", data.error || data.message);
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleDeleteCategoria = async (id: number) => {
-    await fetch(`/api/categorias/${id}`, { method: "DELETE" });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/categorias/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("info", "Categoria removida", "A categoria foi excluída.");
+        loadAllData();
+      } else {
+        addToast("error", "Erro ao excluir categoria", data.error || data.message);
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleAddCartao = async (cartaoData: any) => {
-    await fetch("/api/cartoes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cartaoData),
-    });
-    loadAllData();
+    try {
+      const res = await fetch("/api/cartoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cartaoData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("success", "Cartão de crédito cadastrado!", `Cartão: "${cartaoData.nome}"`);
+        loadAllData();
+      } else {
+        addToast("error", "Inclusão de cartão negada", data.error || data.message || "Nome e dias de fechamento/vencimento são obrigatórios.");
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleDeleteCartao = async (id: number) => {
-    await fetch(`/api/cartoes/${id}`, { method: "DELETE" });
-    loadAllData();
+    try {
+      const res = await fetch(`/api/cartoes/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("info", "Cartão removido", "O cartão de crédito foi excluído.");
+        loadAllData();
+      } else {
+        addToast("error", "Erro ao excluir cartão", data.error || data.message);
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   const handleUpdateConfig = async (cfgData: Partial<AppConfig>) => {
-    await fetch("/api/config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cfgData),
-    });
-    loadAllData();
+    try {
+      const res = await fetch("/api/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cfgData),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("success", "Configurações salvas com sucesso!");
+        loadAllData();
+      } else {
+        addToast("error", "Falha ao salvar configurações", data.error || data.message);
+      }
+    } catch (err: any) {
+      addToast("error", "Erro de conexão", err.message);
+    }
   };
 
   // 1. Loading state
@@ -267,6 +471,9 @@ export function AppContent() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
+
+      {/* Global Toast Notifications banner overlay */}
+      <ToastNotification toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

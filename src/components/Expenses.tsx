@@ -110,33 +110,33 @@ export const Expenses: React.FC<ExpensesProps> = ({
 
   const handleAddDespesaSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!descricao || !valor || parseFloat(valor) <= 0) return;
 
-      onAddDespesa({
-        data_compra: dataCompra,
-        categoria_id: categoriaId,
-        descricao,
-        valor: parseFloat(valor),
-        forma_pagamento: formaPagamento,
-        cartao_id: formaPagamento === "Cartão de Crédito" ? (cartaoId || cartoes[0]?.id || null) : null,
-        caixa,
-        responsavel,
-        total_parcelas: (formaPagamento === "Cartão de Crédito" || formaPagamento === "Financiamento" || formaPagamento === "Boleto/Transferência") ? (parseInt(totalParcelas) || 1) : 1,
-      });
+    onAddDespesa({
+      data_compra: dataCompra,
+      categoria_id: categoriaId,
+      descricao,
+      valor: parseFloat(valor) || 0,
+      forma_pagamento: formaPagamento,
+      cartao_id: formaPagamento === "Cartão de Crédito" ? (cartaoId || cartoes[0]?.id || null) : null,
+      caixa,
+      responsavel,
+      total_parcelas: (formaPagamento === "Cartão de Crédito" || formaPagamento === "Financiamento" || formaPagamento === "Boleto/Transferência") ? (parseInt(totalParcelas) || 1) : 1,
+    });
 
-    setDescricao("");
-    setValor("");
-    setTotalParcelas("1");
+    if (descricao && valor && parseFloat(valor) > 0) {
+      setDescricao("");
+      setValor("");
+      setTotalParcelas("1");
+    }
   };
 
   const handleAddFixaSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fixaDescricao || !fixaValor || parseFloat(fixaValor) <= 0) return;
 
     onAddDespesaFixa({
       descricao: fixaDescricao,
       categoria_id: fixaCategoriaId,
-      valor: parseFloat(fixaValor),
+      valor: parseFloat(fixaValor) || 0,
       forma_pagamento: fixaForma,
       cartao_id: fixaForma === "Cartão de Crédito" ? fixaCartaoId : null,
       dia_vencimento: parseInt(fixaDia) || 5,
@@ -144,8 +144,10 @@ export const Expenses: React.FC<ExpensesProps> = ({
       responsavel,
     });
 
-    setFixaDescricao("");
-    setFixaValor("");
+    if (fixaDescricao && fixaValor && parseFloat(fixaValor) > 0) {
+      setFixaDescricao("");
+      setFixaValor("");
+    }
   };
 
   const handleAddCartaoSubmit = (e: React.FormEvent) => {
@@ -302,34 +304,23 @@ export const Expenses: React.FC<ExpensesProps> = ({
 
               {(formaPagamento === "Cartão de Crédito" || formaPagamento === "Financiamento" || formaPagamento === "Boleto/Transferência") && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Qtd Parcelas / Vezes (N x)</label>
-                  <div className="flex gap-2">
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    Número de Vezes (Parcelas)
+                  </label>
+                  <div className="relative">
                     <input
                       type="number"
                       min="1"
                       max="420"
                       value={totalParcelas}
                       onChange={(e) => setTotalParcelas(e.target.value)}
-                      className="w-1/2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-amber-400 font-bold focus:outline-none focus:border-rose-500"
-                      placeholder="1"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-amber-400 font-bold focus:outline-none focus:border-rose-500 min-h-[38px]"
+                      placeholder="Ex: 1, 10, 12..."
                       required
                     />
-                    <select
-                      value={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24, 36, 48, 60, 72, 120, 180, 240, 360].includes(Number(totalParcelas)) ? totalParcelas : "custom"}
-                      onChange={(e) => {
-                        if (e.target.value !== "custom") {
-                          setTotalParcelas(e.target.value);
-                        }
-                      }}
-                      className="w-1/2 bg-slate-800 border border-slate-700 rounded-xl px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-rose-500 cursor-pointer"
-                    >
-                      <option value="custom">Outro nº...</option>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24, 36, 48, 60, 72, 120, 180, 240, 360].map((n) => (
-                        <option key={n} value={n}>
-                          {n}x {n === 1 ? "(À vista)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="absolute right-3 top-2.5 text-xs text-slate-400 pointer-events-none font-medium">
+                      {parseInt(totalParcelas) > 1 ? `${totalParcelas}x` : "À vista (1x)"}
+                    </span>
                   </div>
                   {parseInt(totalParcelas) > 1 && valor && parseFloat(valor) > 0 && (
                     <p className="text-[10px] text-emerald-400 font-medium mt-1">

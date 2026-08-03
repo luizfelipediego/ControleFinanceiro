@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import crypto from "crypto";
@@ -146,6 +147,39 @@ const db = {
   audit_logs: [] as AuditLogDb[],
 };
 
+const DB_FILE = path.join(process.cwd(), "data_db.json");
+
+function loadDbFromFile() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const data = fs.readFileSync(DB_FILE, "utf-8");
+      const loaded = JSON.parse(data);
+      if (Array.isArray(loaded.users) && loaded.users.length > 0) db.users = loaded.users;
+      if (loaded.config) db.config = { ...db.config, ...loaded.config };
+      if (Array.isArray(loaded.categorias) && loaded.categorias.length > 0) db.categorias = loaded.categorias;
+      if (Array.isArray(loaded.cartoes)) db.cartoes = loaded.cartoes;
+      if (Array.isArray(loaded.receitas)) db.receitas = loaded.receitas;
+      if (Array.isArray(loaded.despesas_fixas)) db.despesas_fixas = loaded.despesas_fixas;
+      if (Array.isArray(loaded.despesas)) db.despesas = loaded.despesas;
+      if (Array.isArray(loaded.audit_logs)) db.audit_logs = loaded.audit_logs;
+      console.log("Database successfully loaded from data_db.json");
+    }
+  } catch (err) {
+    console.error("Failed to load database file:", err);
+  }
+}
+
+function saveDbToFile() {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to save database file:", err);
+  }
+}
+
+// Load initial state from file if present
+loadDbFromFile();
+
 function calcularCompetencia(dataCompraStr: string, formaPagamento: string, cartaoId?: number | null): string {
   const dt = new Date(dataCompraStr);
   if (isNaN(dt.getTime())) return new Date().toISOString().slice(0, 7);
@@ -189,6 +223,7 @@ function addAuditLog(userId: number | null, action: string, tableName: string, r
 function garantirFixasGeradas(ano: number, mes: number, userId: number = 1) {
   const compStr = `${ano}-${mes < 10 ? '0' + mes : mes}`;
   const despesasMes = db.despesas.filter((d) => d.data_competencia === compStr);
+  let novasGeradas = false;
 
   db.despesas_fixas.filter((f) => f.ativa).forEach((fixa) => {
     const jaGerada = despesasMes.some((d) => d.descricao.includes(fixa.descricao));
@@ -212,8 +247,12 @@ function garantirFixasGeradas(ano: number, mes: number, userId: number = 1) {
         user_id: userId,
       };
       db.despesas.push(nueva);
+      novasGeradas = true;
     }
   });
+  if (novasGeradas) {
+    saveDbToFile();
+  }
 }
 
 // API Routes
@@ -255,6 +294,7 @@ app.post("/api/auth/register", (req, res) => {
 
   db.users.push(newUser);
   addAuditLog(newUser.id, "USUARIO_CRIADO", "users", newUser.id, null, { email: newUser.email });
+  saveDbToFile();
   res.status(201).json({ id: newUser.id, email: newUser.email, is_admin: newUser.is_admin, created_at: newUser.created_at });
 });
 
@@ -375,6 +415,7 @@ app.post("/api/categorias", (req, res) => {
   const nova: CategoriaDb = { id: db.categorias.length + 1, nome, teto_mensal: parseFloat(teto_mensal) || 0, user_id: null };
   db.categorias.push(nova);
   addAuditLog(1, "CATEGORIA_CRIADA", "categorias", nova.id, null, nova);
+  saveDbToFile();
   res.status(201).json(nova);
 });
 
@@ -384,6 +425,7 @@ app.put("/api/categorias/:id", (req, res) => {
   if (!cat) return res.status(404).json({ error: "Categoria não encontrada" });
   if (req.body.nome) cat.nome = req.body.nome;
   if (req.body.teto_mensal !== undefined) cat.teto_mensal = parseFloat(req.body.teto_mensal);
+  saveDbToFile();
   res.json(cat);
 });
 
@@ -392,6 +434,7 @@ app.delete("/api/categorias/:id", (req, res) => {
   const idx = db.categorias.findIndex((c) => c.id === id);
   if (idx === -1) return res.status(404).json({ error: "Não encontrada" });
   db.categorias.splice(idx, 1);
+  saveDbToFile();
   res.json({ message: "Removida" });
 });
 
@@ -402,6 +445,7 @@ app.post("/api/cartoes", (req, res) => {
   if (!nome || !dia_fechamento || !dia_vencimento) return res.status(400).json({ error: "Campos obrigatórios faltando" });
   const novo: CartaoDb = { id: db.cartoes.length + 1, nome, banco: banco || "Banco", dia_fechamento: parseInt(dia_fechamento), dia_vencimento: parseInt(dia_vencimento), user_id: null };
   db.cartoes.push(novo);
+  saveDbToFile();
   res.status(201).json(novo);
 });
 
@@ -409,6 +453,7 @@ app.delete("/api/cartoes/:id", (req, res) => {
   const id = parseInt(req.params.id);
   const idx = db.cartoes.findIndex((c) => c.id === id);
   if (idx !== -1) db.cartoes.splice(idx, 1);
+  saveDbToFile();
   res.json({ message: "Removido" });
 });
 
@@ -428,6 +473,7 @@ app.post("/api/receitas", (req, res) => {
   if (!data || !origem || !valor) return res.status(400).json({ error: "Data, origem e valor são obrigatórios" });
   const nova: ReceitaDb = { id: db.receitas.length + 1, data, origem, valor: parseFloat(valor), observacao: observacao || "", caixa: caixa || "PF (Pessoal)", user_id: 1 };
   db.receitas.push(nova);
+  saveDbToFile();
   res.status(201).json(nova);
 });
 
@@ -435,6 +481,7 @@ app.delete("/api/receitas/:id", (req, res) => {
   const id = parseInt(req.params.id);
   const idx = db.receitas.findIndex((r) => r.id === id);
   if (idx !== -1) db.receitas.splice(idx, 1);
+  saveDbToFile();
   res.json({ message: "Removida" });
 });
 
@@ -490,6 +537,7 @@ app.post("/api/despesas", (req, res) => {
     criadas.push(nova);
   }
 
+  saveDbToFile();
   res.status(201).json(criadas);
 });
 
@@ -504,6 +552,7 @@ app.put("/api/despesas/:id", (req, res) => {
   if (req.body.data_competencia) desp.data_competencia = req.body.data_competencia;
   if (req.body.caixa) desp.caixa = req.body.caixa;
   if (req.body.responsavel) desp.responsavel = req.body.responsavel;
+  saveDbToFile();
   res.json(desp);
 });
 
@@ -511,6 +560,7 @@ app.delete("/api/despesas/:id", (req, res) => {
   const id = parseInt(req.params.id);
   const idx = db.despesas.findIndex((d) => d.id === id);
   if (idx !== -1) db.despesas.splice(idx, 1);
+  saveDbToFile();
   res.json({ message: "Despesa removida" });
 });
 
@@ -540,6 +590,7 @@ app.post("/api/despesas-fixas", (req, res) => {
     user_id: 1,
   };
   db.despesas_fixas.push(nova);
+  saveDbToFile();
   res.status(201).json(nova);
 });
 
@@ -548,6 +599,7 @@ app.patch("/api/despesas-fixas/:id/toggle", (req, res) => {
   const fixa = db.despesas_fixas.find((f) => f.id === id);
   if (!fixa) return res.status(404).json({ error: "Não encontrada" });
   fixa.ativa = !fixa.ativa;
+  saveDbToFile();
   res.json(fixa);
 });
 
@@ -555,6 +607,7 @@ app.delete("/api/despesas-fixas/:id", (req, res) => {
   const id = parseInt(req.params.id);
   const idx = db.despesas_fixas.findIndex((f) => f.id === id);
   if (idx !== -1) db.despesas_fixas.splice(idx, 1);
+  saveDbToFile();
   res.json({ message: "Excluída" });
 });
 
@@ -566,6 +619,7 @@ app.put("/api/config", (req, res) => {
   if (req.body.reserva_percentual !== undefined) db.config.reserva_percentual = parseFloat(req.body.reserva_percentual);
   if (req.body.fundo_emancipacao_acumulado !== undefined) db.config.fundo_emancipacao_acumulado = parseFloat(req.body.fundo_emancipacao_acumulado);
   if (req.body.fundo_emancipacao_meta !== undefined) db.config.fundo_emancipacao_meta = parseFloat(req.body.fundo_emancipacao_meta);
+  saveDbToFile();
   res.json(db.config);
 });
 

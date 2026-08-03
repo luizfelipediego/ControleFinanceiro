@@ -23,15 +23,16 @@ export const Categories: React.FC<CategoriesProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome) return;
 
     onAddCategoria({
       nome,
       teto_mensal: parseFloat(teto) || 0,
     });
 
-    setNome("");
-    setTeto("");
+    if (nome) {
+      setNome("");
+      setTeto("");
+    }
   };
 
   const handleSaveEdit = (id: number) => {
