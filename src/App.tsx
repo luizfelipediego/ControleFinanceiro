@@ -321,36 +321,26 @@ export function AppContent() {
   };
 
   const handleDeleteCartao = async (id: number) => {
-    try {
-      const res = await fetch(`/api/cartoes/${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) {
-        addToast("info", "Cartão removido", "O cartão de crédito foi excluído.");
-        loadAllData();
-      } else {
-        addToast("error", "Erro ao excluir cartão", data.error || data.message);
-      }
-    } catch (err: any) {
-      addToast("error", "Erro de conexão", err.message);
+    const { ok, data } = await safeFetchJson(`/api/cartoes/${id}`, { method: "DELETE" });
+    if (ok) {
+      addToast("info", "Cartão removido", "O cartão de crédito foi excluído.");
+      loadAllData();
+    } else {
+      addToast("error", "Erro ao excluir cartão", data.error || data.message);
     }
   };
 
   const handleUpdateConfig = async (cfgData: Partial<AppConfig>) => {
-    try {
-      const res = await fetch("/api/config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cfgData),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        addToast("success", "Configurações salvas com sucesso!");
-        loadAllData();
-      } else {
-        addToast("error", "Falha ao salvar configurações", data.error || data.message);
-      }
-    } catch (err: any) {
-      addToast("error", "Erro de conexão", err.message);
+    const { ok, data } = await safeFetchJson("/api/config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cfgData),
+    });
+    if (ok) {
+      addToast("success", "Configurações salvas com sucesso!");
+      loadAllData();
+    } else {
+      addToast("error", "Falha ao salvar configurações", data.error || data.message);
     }
   };
 

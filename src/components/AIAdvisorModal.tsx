@@ -36,8 +36,17 @@ export const AIAdvisorModal: React.FC<AIAdvisorModalProps> = ({
           user_name: user?.displayName || user?.email?.split("@")[0] || "Usuário",
         }),
       });
-      const data = await res.json();
-      setAdvisorData(data);
+      if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
+        const data = await res.json();
+        setAdvisorData(data);
+      } else {
+        setAdvisorData({
+          insights: "Não foi possível carregar a análise do assistente neste momento.",
+          alertas: ["Verifique sua conexão com o servidor."],
+          sugestoes_economia: ["Tente novamente mais tarde."],
+          saude_financeira_score: 70,
+        });
+      }
     } catch (err) {
       console.error("AI Advisor Error:", err);
     } finally {
